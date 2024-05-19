@@ -12,9 +12,7 @@
 <extension point="xbmc.python.pluginsource" library="resources/plugin.py">
   <provides>video</provides>
 </extension>
-<extension point="xbmc.python.script" library="resources/script.py" />
-<extension point="xbmc.service" library="resources/service.py" />
-<extension point="xbmc.python.module" library="resources/modules" />
+<extension point="xbmc.python.script" library="resources/main.py" />
 <extension point="xbmc.addon.metadata">
   <reuselanguageinvoker>false</reuselanguageinvoker>
   <summary lang="en_GB">SunNxt</summary>
@@ -26,8 +24,6 @@
   <assets>
     <icon>icon.png</icon>
     <fanart>fanart.jpg</fanart>
-    <screenshot>resources/screenshot-01.jpg</screenshot>
-    <screenshot>resources/screenshot-02.jpg</screenshot>
   </assets>
 </extension>
 </addon>
