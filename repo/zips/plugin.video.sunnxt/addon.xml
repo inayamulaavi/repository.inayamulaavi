@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.sunnxt" name="SunNXT" version="2.1.28~nexusrepo" provider-name="inayamulaavi">
+<addon id="plugin.video.sunnxt" name="SunNXT" version="2.1.29~nexusrepo" provider-name="inayamulaavi">
     <requires>
 		<import addon="script.module.six" />
 		<import addon="script.module.kodi-six" />

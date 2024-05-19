@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<addons><addon id="plugin.video.sunnxt" name="SunNXT" version="2.1.28~nexusrepo" provider-name="inayamulaavi">
+<addons><addon id="plugin.video.sunnxt" name="SunNXT" version="2.1.29~nexusrepo" provider-name="inayamulaavi">
     <requires>
 		<import addon="script.module.six" />
 		<import addon="script.module.kodi-six" />
@@ -31,7 +31,7 @@
             <fanart>fanart.jpg</fanart>
         </assets>
     </extension>
-</addon><addon id="repository.inayamulaavi" name="inayamulaavi Repository" version="1.8" provider-name="inayamulaavi">
+</addon><addon id="repository.inayamulaavi" name="inayamulaavi Repository" version="1.9" provider-name="inayamulaavi">
     <extension point="xbmc.addon.repository" name="inayamulaavi Repository">
         <dir>
             <info compressed="false">https://raw.githubusercontent.com/inayamulaavi/repository.inayamulaavi/main/repo/zips/addons.xml</info>
