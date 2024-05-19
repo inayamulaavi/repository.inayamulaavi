@@ -1,0 +1,3 @@
+[submodule "nexusrepo/plugin.video.sunnxt"]
+	path = nexusrepo/plugin.video.sunnxt
+	url = git@inayamulaavi.github.com:inayamulaavi/plugin.video.sunnxt.git
