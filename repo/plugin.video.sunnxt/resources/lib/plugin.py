@@ -283,7 +283,7 @@ def login():
 
         jd = aes.decrypt(json_data.get('response'))
 
-        xbmc.log(dumps(jd), xbmc.LOGINFO)
+        # xbmc.log(dumps(jd), xbmc.LOGINFO)
 
         jd = loads(jd)
         if jd.get('status') == "SUCCESS":
