@@ -812,11 +812,14 @@ def update_db_stream_folder_index(show_id, stream_url):
     stream_folder, stream_index, ts_index = (None, None, None)
 
     response = requests.get(stream_url, headers=headers)
-    stream_data =  response.text.strip().split('\n')[-1].split('/')
+    m3u8_data = m3u8.loads(response.text)
+    stream_data = m3u8_data.files[0]
+    # stream_data =  response.text.strip().split('\n')[-1].split('/')
 
     stream_folder = stream_data[0]
     stream_index = stream_data[2]
     ts_index = stream_data[-1].split('.')[0].split('_')[-1]
+
 
     conn = sqlite3.connect(channeldb)
     conn.row_factory = sqlite3.Row
