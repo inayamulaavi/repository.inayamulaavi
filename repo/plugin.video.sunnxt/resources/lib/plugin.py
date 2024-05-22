@@ -2,7 +2,7 @@
 import sys
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from . import kodilogging
 from . import kodiutils
@@ -27,6 +27,7 @@ import string
 import time
 from base64 import b64encode
 import urllib
+import m3u8
 
 # Python 2 and 3: option 3
 try:
@@ -626,6 +627,26 @@ def get_top():
     cid = 3
     top.append((title, cid))
     return top
+
+
+def get_timeline_segments(day, tid, label=''):
+    now = datetime.now()
+    timeline = []
+    for index, hour in enumerate(range(0, -63, -3)):
+
+        start_hour = timedelta(hours=hour-3)
+        end_hour = timedelta(hours=hour)
+        start_time = now + start_hour
+        end_time = now + end_hour
+
+        if start_time.day == day:
+            timerange = "%s: [%s] - [%s] %s" % (tid.title(),
+                                                start_time.strftime("%I:%M %p"),
+                                            end_time.strftime("%I:%M %p"),
+                                            label)
+            timeline.append((index, timerange))
+
+    return timeline
 
 
 def get_channels(lang, cid, page):
@@ -1255,27 +1276,85 @@ def list_channels(lang, cid, page):
     # web_pdb.set_trace()
     for title, icon, bid, labels, subtype in channels:
         list_item = xbmcgui.ListItem(label='[COLOR yellow]%s[/COLOR]' % title)
-        if 'Next Page' in title:
-            list_item.setProperty('IsPlayable', 'false')
-            url = '{0}?action=list_item&cid={1}&page={2}'.format(
-                _url, cid, bid)
-            is_folder = True
-        else:
-            list_item.setProperty('IsPlayable', 'true')
-            list_item.setArt(icon)
-            list_item.setInfo('video', labels)
-            url = '{0}?action=playLive&showid={1}&page=1'.format(_url, bid)
-            is_folder = False
-        # else:
-        #     list_item.setProperty('IsPlayable', 'false')
-        #     list_item.setArt(icon)
-        #     list_item.setInfo('video', labels)
-        #     url = '{0}?action=list_shows&showid={1}&page=1'.format(_url, bid)
-        #     is_folder = True
+        list_item.setProperty('IsPlayable', 'false')
+        url = '{0}?action=list_channel_by_timeline&cid={1}&ctitle={2}&bid={3}&page=1'.format(
+            _url, cid, title, bid)
+        is_folder = True
         listing.append((url, list_item, is_folder))
 
     xbmcplugin.addDirectoryItems(_handle, listing, len(listing))
     # xbmcplugin.setContent(_handle, 'addons')
+    xbmcplugin.endOfDirectory(_handle)
+
+
+def list_timeline_segment(cid, ctitle, bid, tid):
+    """
+    Create timeline segment for the given channel - cid
+    """
+    timelines = None
+    now = datetime.now()
+
+    for_day = now.day
+    if tid == "yesterday":
+        for_day -= 1
+    elif tid == "two_days_ago":
+        # delta = timedelta(days=-2, hours)
+        for_day -= 2
+    else:
+        for_day = now.day
+
+    listing = []
+    timelines = get_timeline_segments(for_day, tid, ctitle)
+
+
+
+    # Add entries for Timeline
+    for index, timeline in timelines:
+        # Add entry for timeline
+        list_item = xbmcgui.ListItem(label='[COLOR yellow]%s[/COLOR]' % timeline)
+        list_item.setProperty('IsPlayable', 'true')
+        # list_item.setArt(icon)
+        list_item.setInfo('video', index)
+        url = '{0}?action=playBack&showid={1}&rewind_index={2}&page=1'.format(_url,
+                                                                          bid,
+                                                                          index)
+        is_folder = False
+        listing.append((url, list_item, is_folder))
+
+    xbmcplugin.addDirectoryItems(_handle, listing, len(listing))
+    xbmcplugin.endOfDirectory(_handle)
+
+
+def list_channel_timeline(cid, ctitle, bid):
+    """
+    Create timeline segments for the given channel - cid
+    """
+
+    timeline = [('Today', 'today'), ('Yesterday', 'yesterday'),
+                ('2 days ago', 'two_days_ago')]
+    listing = []
+
+
+    # Add entry for Live
+    list_item = xbmcgui.ListItem(label='[COLOR yellow]%s - LIVE[/COLOR]' % ctitle)
+    list_item.setProperty('IsPlayable', 'true')
+    # list_item.setArt(icon)
+    list_item.setInfo('video', "Live")
+    url = '{0}?action=playLive&showid={1}&page=1'.format(_url, bid)
+    is_folder = False
+    listing.append((url, list_item, is_folder))
+
+    # Add entries for Timeline
+    for title, tid in timeline:
+
+        list_item = xbmcgui.ListItem(label='[COLOR yellow]%s[/COLOR]' % title)
+        list_item.setProperty('IsPlayable', 'false')
+        url = '{0}?action=list_by_timeline&cid={1}&ctitle={2}&bid={3}&tid={4}&page=1'.format(_url,
+                                                                                             cid,ctitle,bid,tid)
+        is_folder = True
+        listing.append((url, list_item, is_folder))
+
+    xbmcplugin.addDirectoryItems(_handle, listing, len(listing))
     xbmcplugin.endOfDirectory(_handle)
 
 
@@ -1550,6 +1629,60 @@ def playBack(show_id, rewind_index):
     stream_hash = addon.getSetting("hdntl")
     stream_url = get_stream_url(show_id, stream_hash)
 
+    rewind_index = abs(int(rewind_index))
+
+    if rewind_index >= 0 and rewind_index <= 20:
+        rewind_index = rewind_index
+    else:
+        rewind_index = 0
+
+    # web_pdb.set_trace()
+    stream_playlist = m3u8.load(stream_url)
+    playlist_dump = stream_playlist.dumps()
+
+    # segment_uri: '20240327T112955/master_480p/00440/master_480p_01183.ts'
+    start_segment_id = stream_playlist.segments[0].uri.split('/')[2]
+    end_segment_id = stream_playlist.segments[-1].uri.split('/')[2]
+
+    # create new segment id based on rewind_index
+    start_segment_id_new = "%05d" % (int(start_segment_id) - rewind_index)
+    end_segment_id_new = "%05d" % (int(end_segment_id) - rewind_index)
+
+    # Update playlist_dump with new segment bounds
+    playlist_dump = playlist_dump.replace(start_segment_id,
+                                          start_segment_id_new)
+    playlist_dump = playlist_dump.replace(end_segment_id,
+                                          end_segment_id_new)
+
+    new_playlist = m3u8.loads(playlist_dump)
+    new_playlist.base_uri = stream_playlist.base_uri
+
+    web_pdb.set_trace()
+    playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+    playlist.clear()
+
+    # for ts_url in ts_urls:
+    #     vidUrl = "{}|User-Agent={}&Content-Type=application/x-mpegURL".format(
+    #         ts_url,
+    #         USER_AGENT
+    #     ).strip()
+
+    # playlist.add(playlist_dump, xbmcgui.ListItem(), index=0)
+
+    # playlist.add(url=response.geturl(), listitem=item, index=0)
+    # log.debug("PLAYLIST: %s --- %d" % (response.geturl(), playlist.size()))
+    #             xbmc.Player().play(playlist)
+
+    xbmc.Player().play(playlist, windowed=False, startpos=0)
+
+
+
+    # For archive playing
+def playBack_by_playlist(show_id, rewind_index):
+
+    stream_hash = addon.getSetting("hdntl")
+    stream_url = get_stream_url(show_id, stream_hash)
+
     # For archive playing
     (stream_folder, stream_index, ts_index) = update_db_stream_folder_index(show_id, stream_url)
 
@@ -1597,12 +1730,12 @@ def playBack(show_id, rewind_index):
 
     # playlist.setContentLookup(False)
 
-    xbmc.Player().play(playlist, windowed=False, startpos= -1)
+    xbmc.Player().play(item=playlist, windowed=False, startpos= -1)
     # xbmc.Player().play(playlist)
 
 
     # play_item = xbmcgui.ListItem(path=vidUrl)
-    # xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
+    # xbmcplugin.setResolvedUrl(_handle, True, playlist)
 
 
 def playNew(item_id, show_id, item_type):
@@ -1751,6 +1884,12 @@ def router(paramstring):
             list_by_language(params['cid'])
         elif params['action'] == 'list_channel_by_language':
             list_channels(params['language'], params['cid'], params['page'])
+        elif params['action'] == 'list_channel_by_timeline':
+            list_channel_timeline(params['cid'], params['ctitle'],
+                                  params['bid'])
+        elif params['action'] == 'list_by_timeline':
+            list_timeline_segment(params['cid'], params['ctitle'],
+                                  params['bid'], params['tid'])
             # web_pdb.set_trace()
         elif params['action'] == 'list_shows':
             list_shows(params['showid'], params['page'])
@@ -1762,7 +1901,8 @@ def router(paramstring):
             playNew(params['vid'], params['sid'], params['itemtype'])
         elif params['action'] == 'playLive':
             playLive(params['showid'])
-            # playBack(params['showid'],1)
+        elif params['action'] == 'playBack':
+            playBack_by_playlist(params['showid'], params['rewind_index'])
         elif params['action'] == 'list_live':
             list_live()
         elif params['action'] == 'list_livechannel':
